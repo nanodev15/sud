@@ -1,0 +1,233 @@
+#include <stdio.h>
+#include <sudoku.h>
+#include <getopt.h>
+#include <stdlib.h>
+#include<libgen.h>
+#include <ctype.h>
+
+#define true 1
+#define false 0
+typedef int bool;
+bool verbose = false;
+size_t grid_size=16;
+
+char* file;
+FILE* fichier;
+
+
+static bool check_input_char(char c) {
+    bool test;
+    switch (grid_size) {
+        case 64: test= ((c >= '@' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '1' && c <= '9') || c == '& ' || c == '*' || c == '_') ; break ;
+        case 49: test= ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'n') || (c >= '1' && c <= '9') || c == '_');break ;
+        case 36: test=((c >= 'A' && c <= 'Z') || c == 'a' || (c >= '1' && c <= '9') || c == '_') ;break ;
+        case 25: test=((c >= 'A' && c <= 'P') || (c >= '1' && c <= '9') || c == '_') ;break ;
+        case 16: test=((c >= 'A' && c <= 'G') || (c >= '1' && c <= '9') || c == '_') ;break ;
+        case 9: test=((c >= '1' && c <= '9') || c == '_');break ;
+        case 4: test=((c >= '1' && c <= '4') || c == '_');break ;
+        case 1: test=(c == '1' || c == '_');break ;
+        default:
+            test=false;
+            break;
+    }
+    return test;
+}
+
+static void usage(int status) {
+    if (status == EXIT_SUCCESS) {
+        fprintf(stdout, "Usage %s [OPTION] FILE...\n"
+                "Solve Sudoku puzzle’s of variable sizes(1-4).\n\n"
+                "\t-o, –output=FILE\t\twrite result to FILE\n"
+                "\t-v, –verbose\t\t\tverboseoutput\n"
+                "\t-V, –version\t\t\tdisplay version and exit\n"
+                "\t-h, –help\t\t\tdisplay this help\n\n", file);
+        exit(EXIT_SUCCESS);
+    } else {
+        fprintf(stderr, "Try ‘%s –help’ for more information.", file);
+        exit(EXIT_FAILURE);
+    }
+}
+static char ** grid_alloc(void) {
+    char ** grid = calloc(grid_size, sizeof (char*));
+    if (grid == NULL) {
+        fprintf(stderr, "sudoku: error: out of memory !");
+        usage(EXIT_FAILURE);
+    }
+    return grid;
+}
+
+void grid_free(char **grid) {
+    free(grid);
+}
+
+
+
+
+
+static char** grid_parser(FILE* file) {
+    printf("in");
+    char first_line[64];
+    char current_char;
+    char** grid=NULL;
+   unsigned int j = 0;
+   unsigned int i= 0;
+    int line=0;
+    int gridline=0;
+    bool begin = false;
+    bool start=false;
+
+    while ((current_char = fgetc(file)) != EOF) {
+        printf("true");
+        switch (current_char) {
+            case ' ':
+            case '\t':
+                break;
+                default:
+                 if (check_input_char(current_char) == true) {
+                     if(begin==false){
+                         first_line[j]=current_char;
+                         j++;
+                         if (j!=0) start=true; printf("true");
+                     }else{
+                         if (j>= grid_size){
+                             fprintf(stderr, "sudoku: error: line %d is malformed",line);
+                             usage(EXIT_FAILURE);
+                         }
+                         if (i>= grid_size){
+                             fprintf(stderr, "sudoku: error: too mant/few lines in the grid");
+                             usage(EXIT_FAILURE);
+                         }
+/*
+                         if (i< grid_size && fgetc(file)==EOF){
+                             fprintf(stderr, "sudoku: error: too many/few lines in the grid");
+                             usage(EXIT_FAILURE);
+                         }
+*/
+
+
+                         grid[i][j]=current_char;
+                     }
+                }else{
+                     if (start==true && begin==false){
+                         printf("%d", grid[0][2]);
+                         if (current_char=='\n'){
+                             begin=true;
+                             grid_size=j;
+                             grid=grid_alloc();
+                             for(j=0;j<(int) grid_size;j++) grid[0][j]=first_line[j];
+                             i++;
+                             line++;
+                             gridline++;
+                             j=0;
+                         }
+                     }else if (start==true && begin==true){
+                         if (current_char=='\n'){
+                             if (j !=  grid_size-1){
+                                 fprintf(stderr, "sudoku: error: line %d is malformed",line);
+                                 usage(EXIT_FAILURE);
+                             }else{
+                                 line++;
+                                 gridline++;
+                                 i++;
+                                 j=0;
+                             }
+                         }else {
+                              fprintf(stderr, "sudoku: error: wrong character '%c' at line %d ",current_char,line);
+                              usage(EXIT_FAILURE);
+                         }
+                     }else {
+                          if (current_char=='\n'){
+                              line++;
+                          }
+                     }
+
+                }
+        }
+       
+    }
+    
+     return grid;
+
+}
+
+void grid_print(char ** grid) {
+    unsigned int i, j;
+    for (i = 0; i < grid_size; i++) {
+        for (j = 0;j < grid_size; j++) {
+            fprintf(stdout, "%c", grid[i][j]);
+            if (j == grid_size - 1)
+                printf("\n");
+        }
+    }
+
+}
+
+
+
+
+static void version() {
+    fprintf(stdout, "%s %d.%d.%d\n This software is a sudoku solver", file, VERSION, SUBVERSION, REVISION);
+    exit(EXIT_SUCCESS);
+}
+
+int main(int argc, char* argv[]) {
+    printf("hell wold\n");
+    printf("opend");
+    FILE *f = fopen("grid-09", "r");
+    printf("opened");
+
+/*
+    char** gr = grid_parser(f);
+    grid_print(gr);
+    grid_free(gr);
+*/
+
+    
+    file = basename(argv[0]);
+    FILE *grid_fichier=NULL;
+    int optc;
+
+    static struct option long_opts[ ] = {
+        {"help", 0, 0, 'h'},
+        {"output", 1, 0, 'o'},
+        {"version", 0, 0, 'V'},
+        {"verbose", 0, 0, 'v'},
+        {0, 0, 0, 0}};
+
+    while ((optc = getopt_long(argc, argv, "ho:Vv:", long_opts, NULL)) != -1) {
+        switch (optc) {
+            case 'o':
+                fichier = fopen(optarg, "w");
+                if (fichier == NULL) usage(EXIT_FAILURE);
+                break;
+
+            case 'h':
+                usage(EXIT_SUCCESS);
+                break;
+
+            case 'V':
+                version();
+                break;
+            case 'v':
+                verbose = true;
+                break;
+
+            default:
+                usage(EXIT_FAILURE);
+        }
+    }
+
+    grid_fichier = fopen(argv[argc - 1], "r");
+    if (file == NULL)
+        usage(EXIT_FAILURE);
+    else {
+
+    }
+
+    fclose(grid_fichier);
+    exit(EXIT_SUCCESS);
+}
+
+
+
+
